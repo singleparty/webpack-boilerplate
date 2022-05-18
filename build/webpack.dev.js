@@ -1,18 +1,26 @@
+const webpack = require('webpack')
 const { merge } = require('webpack-merge')
 
-const common = require('./webpack.common')
+const webpackCommonConfig = require('./webpack.common')
+const config = require('./config')
 
-module.exports = merge(common, {
+module.exports = merge(webpackCommonConfig, {
   // Set the mode to development or production
   mode: 'development',
 
   // Control how source maps are generated
   devtool: 'inline-source-map',
+  output: {
+    path: config.build,
+    filename: '[name].bundle.js',
+    publicPath: '/',
+    chunkFilename: 'js/[name].js'
+  },
 
   // Spin up a server for quick development
   devServer: {
     historyApiFallback: true,
-    open: true,
+    open: false,
     compress: true,
     hot: true,
     port: 8080,
@@ -35,4 +43,13 @@ module.exports = merge(common, {
       },
     ],
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      __VUE_OPTIONS_API__: 'true',
+      __VUE_PROD_DEVTOOLS__: 'false',
+      'process.env': {
+        BASE_URL: '/'
+      }
+    })
+  ]
 })

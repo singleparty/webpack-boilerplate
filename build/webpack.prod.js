@@ -1,17 +1,19 @@
+const webpack = require('webpack')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 const { merge } = require('webpack-merge')
 
-const paths = require('./paths')
-const common = require('./webpack.common')
+const webpackCommonConfig = require('./webpack.common')
+const config = require('./config')
 
-module.exports = merge(common, {
+module.exports = merge(webpackCommonConfig, {
   mode: 'production',
   devtool: false,
   output: {
-    path: paths.build,
+    path: config.build,
     publicPath: '/',
     filename: 'js/[name].[contenthash].bundle.js',
+    chunkFilename: 'js/[name].[contenthash:8].js'
   },
   module: {
     rules: [
@@ -39,6 +41,11 @@ module.exports = merge(common, {
       filename: 'styles/[name].[contenthash].css',
       chunkFilename: '[id].css',
     }),
+    new webpack.DefinePlugin({
+      'process.env': {
+        BASE_URL: '/'
+      }
+    })
   ],
   optimization: {
     minimize: true,
@@ -52,4 +59,5 @@ module.exports = merge(common, {
     maxEntrypointSize: 512000,
     maxAssetSize: 512000,
   },
-})
+}
+)

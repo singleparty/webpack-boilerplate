@@ -1,15 +1,15 @@
-# 📦 webpack Boilerplate
+# 📦 webpack5 + vue3 Boilerplate
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Sensible webpack 5 boilerplate using Babel, PostCSS and Sass.
+基于`webpack5` + `vue3`的开箱即用项目，并且将`webpack`配置提取出来，便于学习和修改
 
 ## Installation
 
 Clone this repo and npm install.
 
 ```bash
-npm i
+yarn
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ npm i
 ### Development server
 
 ```bash
-npm start
+yarn serve
 ```
 
 You can view the development server at `localhost:8080`.
@@ -25,7 +25,7 @@ You can view the development server at `localhost:8080`.
 ### Production build
 
 ```bash
-npm run build
+yarn build
 ```
 
 > Note: Install [http-server](https://www.npmjs.com/package/http-server) globally to deploy a simple server.
@@ -87,10 +87,6 @@ cd dist && http-server
 - [`eslint-config-prettier`](https://github.com/prettier/eslint-config-prettier) - Implement prettier rules
   - - [`prettier`](https://github.com/prettier/prettier) - Dependency for `prettier-webpack-plugin` plugin
 - [`eslint-import-resolver-webpack`](https://github.com/benmosher/eslint-plugin-import/tree/master/resolvers/webpack) - Throw exceptions for import/export in webpack
-
-## Author
-
-- [Tania Rascia](https://www.taniarascia.com)
 
 ## License
 
