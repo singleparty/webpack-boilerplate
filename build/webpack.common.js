@@ -71,6 +71,7 @@ module.exports = {
       { test: /\.(woff(2)?|eot|ttf|otf|svg|)$/, type: 'asset/inline' },
 
       { test: /\.vue$/, use: ['vue-loader'] },
+      { test: /\.less$/, use: ['style-loader', 'css-loader', 'less-loader'] },
       {
         test: /\.ts$/,
         use: [
