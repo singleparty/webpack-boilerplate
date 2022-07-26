@@ -88,7 +88,7 @@ module.exports = {
 
   resolve: {
     modules: [config.src, 'node_modules'],
-    extensions: ['.js', '.jsx', '.vue', '.json'],
+    extensions: ['.js', '.ts', '.jsx', '.vue', '.json'],
     alias: {
       '@': config.src,
       vue$: 'vue/dist/vue.runtime.esm-bundler.js'
