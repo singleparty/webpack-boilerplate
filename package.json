@@ -18,10 +18,9 @@
   "devDependencies": {
     "@babel/core": "^7.15.8",
     "@babel/plugin-proposal-class-properties": "^7.14.5",
-    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
     "@babel/preset-env": "^7.15.8",
-    "@babel/preset-typescript": "^7.16.7",
-    "@vue/cli-plugin-babel": "^5.0.4",
+    "@babel/preset-typescript": "^7.21.0",
+    "@vue/cli-plugin-babel": "^5.0.8",
     "@vue/compiler-sfc": "^3.2.33",
     "@vue/preload-webpack-plugin": "^2.0.0",
     "babel-loader": "^8.2.2",
@@ -56,5 +55,9 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:singleparty/webpack-boilerplate"
+  },
+  "dependencies": {
+    "eruda": "^2.11.3",
+    "vconsole": "^3.15.0"
   }
 }
