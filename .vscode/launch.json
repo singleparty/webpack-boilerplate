@@ -8,8 +8,8 @@
       "type": "pwa-node",
       "request": "launch",
       "name": "Launch Program",
-      "runtimeExecutable": "npm",
-      "args": ["run", "build"]
+      "runtimeExecutable": "node",
+      "args": ["index.js"]
     }
   ]
 }
