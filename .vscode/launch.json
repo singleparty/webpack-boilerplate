@@ -9,7 +9,7 @@
       "request": "launch",
       "name": "Launch Program",
       "runtimeExecutable": "node",
-      "args": ["index.js"]
+      "args": ["--expose_gc", "index.js"]
     }
   ]
 }

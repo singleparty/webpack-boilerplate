@@ -3,49 +3,33 @@ const path = require('node:path')
 const fse = require('fs-extra')
 
 const tarStream = new compressing.tar.Stream()
-/* tarStream.addEntry(fse.createReadStream(path.join(__dirname, './src/App.vue')), {
-  relativePath: 'fff/App.vue'
-});
-tarStream.addEntry(fse.createReadStream(path.join(__dirname, './src/main.ts')), {
-  relativePath: 'fff/main.ts'
-}); */
-const buffers = []
+origin_finalize = tarStream._finalize
+tarStream._finalize = () => {
+  debugger
+}
+
+const destStream = fse.createWriteStream(path.join(__dirname, 'destination.tar'))
+tarStream.pipe(destStream).on('end', () => {
+  debugger
+})
+
 new compressing.tgz.UncompressStream({ source: path.join(__dirname, './src.tar') })
   .on('error', (err) => {
     debugger
-    console.log(err)
   })
   .on('finish', () => {
     debugger
-    buffers.forEach(([buffer, name]) => {
-      tarStream.addEntry(buffer, {
-        relativePath: name
-      })
-    })
-    
-    const destStream = fse.createWriteStream(path.join(__dirname, 'destination.tar'))
-    tarStream.pipe(destStream)
+    origin_finalize.call(tarStream)
   })
   .on('entry', function (header, stream, next) {
     stream.on('end', next)
 
-    // header.type => file | directory
-    // header.name => path name
-
     if (header.type === 'file') {
-      var tmp = []
-      stream.on('data', function (d) {
-        tmp.push(d)
+      tarStream.addEntry(stream, {
+        relativePath: path.basename(header.name),
+        suppressSizeWarning: true
       })
-      stream.on('end', function () {
-        buffers.push([Buffer.concat(tmp), path.basename(header.name)])
-      })
-      // stream.pipe(fs.createWriteStream(path.join(destDir, header.name)));
     } else {
       stream.resume()
-      /* mkdirp(path.join(destDir, header.name), (err) => {
-        if (err) return handleError(err)
-        stream.resume()
-      }) */
     }
   })
