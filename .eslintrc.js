@@ -1,21 +1,28 @@
 module.exports = {
   root: true,
+
   env: {
     node: true,
+    browser: true,
+    es6: true,
   },
+
   extends: [
-    'plugin:vue/vue3-essential', 'eslint:recommended',
+    'plugin:vue/vue3-essential',
+    'eslint:recommended',
+    '@vue/typescript',
+    'plugin:prettier/recommended',
   ],
-  parserOptions: {
-    ecmaVersion: 2020,
-  },
+
   rules: {
     'no-unused-vars': 0,
     'no-debugger': 0,
+    'vue/no-unused-components': 0,
+    'vue/multi-word-component-names': 0,
   },
-  globals: {
-    // 允许在代码中使用全局变量
-    location: true,
-    setTimeout: true,
+
+  parserOptions: {
+    parser: '@typescript-eslint/parser',
   },
+  globals: {},
 }
