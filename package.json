@@ -57,6 +57,7 @@
     "url": "git@github.com:singleparty/webpack-boilerplate"
   },
   "dependencies": {
+    "axios": "^1.4.0",
     "eruda": "^2.11.3",
     "vconsole": "^3.15.0"
   }
