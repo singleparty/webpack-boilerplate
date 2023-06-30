@@ -2,15 +2,31 @@
   <div class="section section-5">
     <p>第六步，缴费下单</p>
     <button @click="sendOrder">缴费下单</button>
-    <p v-show="curPayAmountLimit.isShow">
+    <div v-if="curBillPeriodLimit.isShow">
+      <!-- 手动输入 -->
       缴费金额：<input
-        :readonly="curPayAmountLimit.readonly"
+        :readonly="curBillPeriodLimit.readonly"
         type="text"
         v-model="data.payAmount"
       />
-      <span v-show="!curPayAmountLimit.isPass">校验不通过</span>
-    </p>
-    <div>
+      <span v-if="!curBillPeriodLimit.isPass">校验不通过</span>
+      <div v-if="curBillPeriodLimit.isShowSelect">
+        <!-- 快捷选择 -->
+        <select
+          v-model="data.payAmount"
+          :disabled="curBillPeriodLimit.isSelectDisabled"
+        >
+          <option
+            v-for="(option, optionIndex) in serializeChooseAmount()"
+            :key="optionIndex"
+            :value="option.value"
+          >
+            请选择金额：{{ option.value }}
+          </option>
+        </select>
+      </div>
+    </div>
+    <div v-if="curBillPeriodLimit.isShowBillPeriod">
       选择账期：
       <select v-model="data.curContractNo">
         <option
@@ -23,7 +39,7 @@
         </option>
       </select>
     </div>
-    <p v-for="item in curContractNoData">{{ item.name }}：{{ item.value }}</p>
+    <p v-for="item in curBillPeriodDetail">{{ item.name }}：{{ item.value }}</p>
   </div>
 
   <div class="section section-5">
@@ -141,8 +157,10 @@ const data = reactive<PaymentData>(
     paymentItemList: [],
     curPaymentItemId: '',
     queryPaymentBillParam: initQueryPaymentBillParam(),
+    flag: void 0,
     billQueryResultModel: initBillQueryResultModel(),
-    curContractNo: '',
+    curContractNo: void 0,
+    // 为什么需要 payAmount 字段？因为不只是展示，用户还可以修改
     payAmount: '',
   })
 )
@@ -151,6 +169,25 @@ watch(data, () => {
   localStorage.setItem('cloudpaymentData', JSON.stringify(data))
 })
 
+const curPaymentItem = computed(() => {
+  const paymentItem = data.paymentItemList.find(
+    item => item.paymentItemId === data.curPaymentItemId
+  )
+  return paymentItem
+})
+
+const curBillPeriod = computed(() => {
+  const paymentItem = curPaymentItem.value
+  // 查缴
+  let billPeriod = data.billQueryResultModel.billQueryResultDataModelList.find(
+    item => item.contractNo === data.curContractNo
+  )
+  // 二次查缴
+  if (paymentItem?.businessFlow === PaymentItemBusinessFlow.二次查缴) {
+    billPeriod = data.billQueryResultModel.billQueryResultDataModelList[0]
+  }
+  return billPeriod
+})
 watch(
   () => [
     data.curCityName,
@@ -183,13 +220,18 @@ watch(
 watch(
   () => data.curContractNo,
   (n, o) => {
-    const info = data.billQueryResultModel.billQueryResultDataModelList.find(
-      item => item.contractNo === data.curContractNo
-    )
-    if (!info) {
+    const paymentItem = curPaymentItem.value
+
+    let billPeriod = curBillPeriod.value
+
+    if (!billPeriod) {
       data.payAmount = ''
-    } else {
-      data.payAmount = info.payAmount
+    } else if (
+      paymentItem?.businessFlow === PaymentItemBusinessFlow.查缴 &&
+      paymentItem.createPaymentBillParamsModelList[0].rangLimit ===
+        CreatePaymentBillParamsModelRangLimit.等于
+    ) {
+      data.payAmount = billPeriod.payAmount
     }
   },
   { immediate: true }
@@ -198,77 +240,109 @@ watch(
 // 动态域
 const curQueryPaymentBillParamModelList = computed(() => {
   // 找到缴费项目
-  const paymentItem = data.paymentItemList.find(
-    item => item.paymentItemId === data.curPaymentItemId
-  )
+  const paymentItem = curPaymentItem.value
   return paymentItem ? paymentItem.queryPaymentBillParamModelList : []
 })
-// 切换账期，缴费金额的限制条件
-const curPayAmountLimit = computed(() => {
-  // amountLimit: 金额需要在此范围内容
-  // rangLimit: 金额是否可以与账单金额不一致
-  // isAppoint: 是否支持预缴，如果支持，就算查不到账单也允许缴费
+// 切换账期，缴费金额、账期选择栏 的限制条件
+const curBillPeriodLimit = computed(() => {
   const output: {
-    // 是否显示金额输入框
+    // 是否显示金额输入
     isShow: boolean
-    // 是否只读
+    // 金额输入框是否只读
     readonly: boolean
     // 金额是否校验通过
     isPass: boolean
+    // 是否显示账期选择栏
+    isShowBillPeriod: boolean
+    // 输入金额使用下拉选择
+    isShowSelect: boolean
+    // 主要是二次查缴，第二次查询后，不能再更改金额
+    isSelectDisabled: boolean
   } = {
     isShow: false,
     readonly: true,
-    isPass: true,
+    isPass: false,
+    isShowBillPeriod: false,
+    isShowSelect: false,
+    isSelectDisabled: false,
   }
 
-  const paymentItem = data.paymentItemList.find(
-    item => item.paymentItemId === data.curPaymentItemId
-  )
+  const paymentItem = curPaymentItem.value
 
   // 需要有 缴费项目，账单，否则不显示
-  if (!paymentItem || !data.billQueryResultModel) return output
+  if (!paymentItem || !data.billQueryResultModel.billKey) return output
 
+  // 金额需要在此范围内容
   const amountLimit = paymentItem.createPaymentBillParamsModelList[0].amountLimit
+  // 金额是否可以与账单金额不一致
   const rangLimit = paymentItem.createPaymentBillParamsModelList[0].rangLimit
+  // 金额快捷选项
+  const chooseAmount = paymentItem.createPaymentBillParamsModelList[0].chooseAmount
+  // 是否支持预缴，如果支持，就算查不到账单也允许缴费
   const isAppoint = paymentItem.isAppoint
+  const businessFlow = paymentItem.businessFlow
+  // 第一次查询允许输入，第二次查询不允许输入
+  const flag = data.flag
   // 是否有账期
   const hasBillPeriod = !!data.billQueryResultModel.billQueryResultDataModelList.length
-  const billPeriod = data.billQueryResultModel.billQueryResultDataModelList.find(
-    item => item.contractNo === data.curContractNo
-  )
+  // 如果是预缴，可能无账期，billPeriod 可能没有
+  let billPeriod = curBillPeriod.value
 
-  // 有账期，但是还没有选择，不显示
-  const c1 = hasBillPeriod && !data.curContractNo
-  // 无账期，也不支持预缴，不显示
-  const c2 = !hasBillPeriod && !isAppoint
-
-  output.isShow = c1 || c2 ? false : true
-
-  output.readonly = rangLimit === CreatePaymentBillParamsModelRangLimit.等于
+  // 有账期：二次查缴 - 显示；查缴，选了账期 - 显示
+  const c1 =
+    hasBillPeriod &&
+    (businessFlow === PaymentItemBusinessFlow.二次查缴 ||
+      (businessFlow === PaymentItemBusinessFlow.查缴 && data.curContractNo))
+  // 无账期：支持预缴 - 显示
+  const c2 = !hasBillPeriod && isAppoint
 
   // 先判断 amountLimit
   const [minAmountLimit, maxAmountLimit] = amountLimit.split('-').map(item => Number(item))
   const c3 = Number(data.payAmount) >= minAmountLimit && Number(data.payAmount) <= maxAmountLimit
   // 判断 rangLimit
-  const c4 = isRangLimitPass(hasBillPeriod, rangLimit, data.payAmount, billPeriod?.payAmount)
+  const c4 = isRangLimitPass({
+    hasBillPeriod,
+    rangLimit,
+    businessFlow,
+    payAmount: data.payAmount,
+    billAmount: billPeriod?.payAmount,
+  })
+
+  output.isShow = c1 || c2 ? true : false
+
   output.isPass = output.isShow && c3 && c4
+
+  output.isShowBillPeriod = businessFlow === PaymentItemBusinessFlow.查缴 && hasBillPeriod
+
+  output.isShowSelect =
+    output.isShow && rangLimit !== CreatePaymentBillParamsModelRangLimit.等于 && !!chooseAmount
+
+  if (output.isShowSelect) {
+    output.readonly = true
+  } else if (businessFlow === PaymentItemBusinessFlow.查缴) {
+    output.readonly = rangLimit === CreatePaymentBillParamsModelRangLimit.等于
+  } else if (businessFlow === PaymentItemBusinessFlow.二次查缴) {
+    output.readonly = flag === Flag.第二次
+  }
+
+  output.isSelectDisabled =
+    businessFlow === PaymentItemBusinessFlow.二次查缴 && flag === Flag.第二次
 
   return output
 })
+
 // 切换账期，展示对应账期信息
-const curContractNoData = computed(() => {
-  const billPeriod = data.billQueryResultModel.billQueryResultDataModelList.find(
-    item => item.contractNo === data.curContractNo
-  )
+const curBillPeriodDetail = computed(() => {
   const output: { name: string; value: string }[] = []
-  if (!billPeriod) return output
-  // 普通项目建议展示以下字段
-  const { customerName, payAmount, balance, beginDate, endDate } = billPeriod
+
+  const paymentItem = curPaymentItem.value
+  // 查缴
+  let billPeriod = curBillPeriod.value
+
+  if (!billPeriod || !paymentItem) return output
+
+  // 户号
   if (data.billQueryResultModel.billKey) {
-    // 先找缴费项目
-    const paymentItem = data.paymentItemList.find(
-      item => item.paymentItemId === data.curPaymentItemId
-    )
     // 再从动态域找 name
     const queryPaymentBillParamModel = paymentItem?.queryPaymentBillParamModelList.find(
       item => item.priorLevel === QueryPaymentBillParamModelPriorLevel.主输入域
@@ -278,20 +352,38 @@ const curContractNoData = computed(() => {
       value: data.billQueryResultModel.billKey,
     })
   }
-  if (customerName) {
-    output.push({ name: '户名', value: customerName })
+  if (paymentItem.businessFlow === PaymentItemBusinessFlow.查缴) {
+    // 查缴建议展示以下字段
+    const { customerName, payAmount, balance, beginDate, endDate } = billPeriod
+    if (customerName) {
+      output.push({ name: '户名', value: customerName })
+    }
+    if (payAmount) {
+      output.push({ name: '账单金额', value: payAmount })
+    }
+    if (balance) {
+      output.push({ name: '余额', value: balance })
+    }
+    if (beginDate) {
+      output.push({ name: '起始日期', value: beginDate })
+    }
+    if (endDate) {
+      output.push({ name: '截止日期', value: endDate })
+    }
   }
-  if (payAmount) {
-    output.push({ name: '账单金额', value: payAmount })
-  }
-  if (balance) {
-    output.push({ name: '余额', value: balance })
-  }
-  if (beginDate) {
-    output.push({ name: '起始日期', value: beginDate })
-  }
-  if (endDate) {
-    output.push({ name: '截止日期', value: endDate })
+  if (paymentItem.businessFlow === PaymentItemBusinessFlow.二次查缴) {
+    const { customerName, filed3, filed5 } = billPeriod
+    const { item1, item3, item4, item7, item2 } = data.billQueryResultModel
+    if (customerName) {
+      output.push({ name: '户名', value: customerName })
+    }
+    output.push({ name: '入表金额', value: item1 })
+    output.push({ name: '补加金额', value: item3 })
+    output.push({ name: '扣减金额', value: item4 })
+    output.push({ name: '用电地址', value: item7 })
+    output.push({ name: '差价电费', value: filed3 })
+    output.push({ name: '差价电费月份', value: filed5 })
+    output.push({ name: '购电次数', value: item2 })
   }
   return output
 })
@@ -385,11 +477,17 @@ type PaymentData = {
   curPaymentItemId: string
   // 用户输入的查询账单动态域
   queryPaymentBillParam: QueryPaymentBillParam
+  flag?: Flag
   billQueryResultModel: BillQueryResultModel
   // 选择的账期
-  curContractNo: string
+  curContractNo?: string
   // 输入金额
   payAmount: string
+}
+
+enum Flag {
+  第一次 = '1',
+  第二次 = '2',
 }
 // 动态域输入形式
 enum QueryPaymentBillParamModelFieldType {
@@ -563,12 +661,26 @@ async function billInfo() {
       return
     }
   }
-  const paymentItem = data.paymentItemList.find(
-    item => item.paymentItemId === data.curPaymentItemId
-  )
-  const res = await billInfoRequest(
-    paymentItem!.businessFlow === PaymentItemBusinessFlow.二次查缴 ? '1' : ''
-  )
+
+  const paymentItem = curPaymentItem.value
+  // 查询账单成功后，才设置 flag 为新值
+  let flag = data.flag
+  if (paymentItem!.businessFlow === PaymentItemBusinessFlow.二次查缴) {
+    // flag 初始值 undefined，如果有值，说明这是第二次查询，如果没值，说明是第一次，设为 1
+    flag = flag ? Flag.第二次 : Flag.第一次
+  }
+
+  // 二次查缴，第二次查询，需要校验金额
+  if (flag === Flag.第二次 && !curBillPeriodLimit.value.isPass) {
+    alert('金额不符合要求')
+    return
+  }
+
+  const res = await billInfoRequest(flag)
+
+  // 设置 flag 为新值
+  data.flag = flag
+
   data.billQueryResultModel = {
     billKey: res.billKey,
     item1: res.item1,
@@ -598,7 +710,7 @@ async function billInfo() {
 }
 
 // 查询账单，需要轮询
-async function billInfoRequest(flag?: string) {
+async function billInfoRequest(flag?: Flag) {
   const maxCount = 5
   let qryAcqSsn = ''
   const sendBillInfoRequest = function (pollingTimes: number) {
@@ -662,8 +774,10 @@ function initBillQueryResultModel(): BillQueryResultModel {
 }
 // 用户修改动态域数据
 function changeQueryPaymentBillParam() {
+  data.flag = void 0
   data.billQueryResultModel = initBillQueryResultModel()
-  data.curContractNo = ''
+  data.curContractNo = void 0
+  data.payAmount = ''
 }
 // 用户切换缴费项目，需要清空其他数据
 function changeCurPaymentItemId() {
@@ -681,19 +795,29 @@ function changeCurCityName() {
   changeCurPaymentType()
 }
 
-function isRangLimitPass(
-  hasBillPeriod: boolean,
-  rangLimit: CreatePaymentBillParamsModelRangLimit,
-  payAmount: string,
+function isRangLimitPass({
+  hasBillPeriod,
+  rangLimit,
+  businessFlow,
+  payAmount,
+  billAmount,
+}: {
+  hasBillPeriod: boolean
+  rangLimit: CreatePaymentBillParamsModelRangLimit
+  businessFlow: PaymentItemBusinessFlow
+  payAmount: string
   billAmount?: string
-): boolean {
-  // 无账期，无限制，不需要校验
-  if (!hasBillPeriod || CreatePaymentBillParamsModelRangLimit.无限制 === rangLimit) {
+}): boolean {
+  // 无账期，二次查缴
+  if (!hasBillPeriod || businessFlow === PaymentItemBusinessFlow.二次查缴) {
     return true
   }
-  // 无账单金额，不太可能
+  // 有账期，但是未选账期
   if (!billAmount) {
     return false
+  }
+  if (rangLimit === CreatePaymentBillParamsModelRangLimit.无限制) {
+    return true
   }
   const _payAmount = Number(payAmount)
   const _billAmount = Number(billAmount)
@@ -716,44 +840,69 @@ function isRangLimitPass(
 }
 // 下单
 function sendOrder() {
-  const paymentItem = data.paymentItemList.find(
-    item => item.paymentItemId === data.curPaymentItemId
-  )
-  const billPeriod = data.billQueryResultModel.billQueryResultDataModelList.find(
-    item => item.contractNo === data.curContractNo
-  )
-  request
-    .post('/api/front/order', {
-      ...data.queryPaymentBillParam,
-      sessionId: data.sessiontId,
-      payAmount: data.payAmount,
-      companyId: paymentItem!.companyId,
-      paymentItemCode: paymentItem!.paymentItemCode,
-      merOrderNo: 'xxxxxxxxxxxx',
-      billKey: data.billQueryResultModel.billKey,
-      notifyUrl: 'https://ciiri.com',
-      item1: data.billQueryResultModel.item1,
-      item2: data.billQueryResultModel.item2,
-      item3: data.billQueryResultModel.item3,
-      item4: data.billQueryResultModel.item4,
-      item5: data.billQueryResultModel.item5,
-      item6: data.billQueryResultModel.item6,
-      item7: data.billQueryResultModel.item7,
-      contractNo: billPeriod!.contractNo,
-      customerName: billPeriod!.customerName,
-      balance: billPeriod!.balance,
-      billAmount: billPeriod!.payAmount,
-      beginDate: billPeriod!.beginDate,
-      endDate: billPeriod!.endDate,
-      billFiled1: billPeriod?.filed1,
-      billFiled2: billPeriod?.filed2,
-      billFiled3: billPeriod?.filed3,
-      billFiled4: billPeriod?.filed4,
-      billFiled5: billPeriod?.filed5,
-    })
-    .then(res => {
-      debugger
-    })
+  // 判断金额是否满足条件
+  if (!curBillPeriodLimit.value.isPass) {
+    alert('金额不符合要求')
+    return
+  }
+  const paymentItem = curPaymentItem.value
+  // 预缴，可能没有账期
+  let billPeriod = curBillPeriod.value
+
+  if (paymentItem?.businessFlow === PaymentItemBusinessFlow.二次查缴 && data.flag !== Flag.第二次) {
+    alert('二次查缴，还需要查询一次')
+    return
+  }
+
+  const requestData = {
+    ...data.queryPaymentBillParam,
+    sessionId: data.sessiontId,
+    payAmount: data.payAmount,
+    companyId: paymentItem!.companyId,
+    paymentItemCode: paymentItem!.paymentItemCode,
+    merOrderNo: 'xxxxxxxxxxxx',
+    billKey: data.billQueryResultModel.billKey,
+    notifyUrl: 'https://ciiri.com',
+    item1: data.billQueryResultModel.item1,
+    item2: data.billQueryResultModel.item2,
+    item3: data.billQueryResultModel.item3,
+    item4: data.billQueryResultModel.item4,
+    item5: data.billQueryResultModel.item5,
+    item6: data.billQueryResultModel.item6,
+    item7: data.billQueryResultModel.item7,
+    contractNo: billPeriod?.contractNo,
+    customerName: billPeriod?.originalCustomerName || billPeriod?.customerName,
+    balance: billPeriod?.balance,
+    billAmount: billPeriod?.payAmount,
+    beginDate: billPeriod?.beginDate,
+    endDate: billPeriod?.endDate,
+    billFiled1: billPeriod?.filed1,
+    billFiled2: billPeriod?.filed2,
+    billFiled3: billPeriod?.filed3,
+    billFiled4: billPeriod?.filed4,
+    billFiled5: billPeriod?.filed5,
+  }
+
+  // 二次查缴必填，为用户输入金额，单位 元
+  if (paymentItem?.businessFlow === PaymentItemBusinessFlow.二次查缴) {
+    requestData.filed1 = data.payAmount
+  }
+
+  request.post('/api/front/order', requestData).then(res => {
+    debugger
+  })
+}
+
+function serializeChooseAmount() {
+  const paymentItem = curPaymentItem.value
+  const chooseAmount = paymentItem?.createPaymentBillParamsModelList[0]?.chooseAmount
+  if (!chooseAmount) {
+    return []
+  }
+  return chooseAmount.split('|').map(item => ({
+    value: item,
+    name: '',
+  }))
 }
 </script>
 
