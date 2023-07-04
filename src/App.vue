@@ -1,5 +1,11 @@
 <template>
-  <div class="section section-5">
+  <div class="section section-7">
+    <p>第x步，手机充值</p>
+    <button @click="mobilePaymentItemList">查询手机缴费信息</button>
+    <button @click="sendOrder">充值</button>
+  </div>
+
+  <div class="section section-6">
     <p>第六步，缴费下单</p>
     <button @click="sendOrder">缴费下单</button>
     <div v-if="curBillPeriodLimit.isShow">
@@ -144,6 +150,7 @@
   setup
 >
 import { computed, reactive, watch } from 'vue'
+import { Decimal } from 'decimal.js'
 import { request } from './request'
 
 const data = reactive<PaymentData>(
@@ -231,7 +238,7 @@ watch(
       paymentItem.createPaymentBillParamsModelList[0].rangLimit ===
         CreatePaymentBillParamsModelRangLimit.等于
     ) {
-      data.payAmount = billPeriod.payAmount
+      data.payAmount = Decimal.div(billPeriod.payAmount, 100).toString()
     }
   },
   { immediate: true }
@@ -281,20 +288,17 @@ const curBillPeriodLimit = computed(() => {
   // 是否支持预缴，如果支持，就算查不到账单也允许缴费
   const isAppoint = paymentItem.isAppoint
   const businessFlow = paymentItem.businessFlow
-  // 第一次查询允许输入，第二次查询不允许输入
+  // 二次查缴，第一次查询后输入金额，第二次查询不允许修改
   const flag = data.flag
   // 是否有账期
   const hasBillPeriod = !!data.billQueryResultModel.billQueryResultDataModelList.length
   // 如果是预缴，可能无账期，billPeriod 可能没有
   let billPeriod = curBillPeriod.value
 
-  // 有账期：二次查缴 - 显示；查缴，选了账期 - 显示
+  // 预缴 || 不支持预缴的查缴，有账单，并且选中账单
   const c1 =
-    hasBillPeriod &&
-    (businessFlow === PaymentItemBusinessFlow.二次查缴 ||
-      (businessFlow === PaymentItemBusinessFlow.查缴 && data.curContractNo))
-  // 无账期：支持预缴 - 显示
-  const c2 = !hasBillPeriod && isAppoint
+    isAppoint ||
+    (businessFlow === PaymentItemBusinessFlow.查缴 && hasBillPeriod && data.curContractNo)
 
   // 先判断 amountLimit
   const [minAmountLimit, maxAmountLimit] = amountLimit.split('-').map(item => Number(item))
@@ -308,7 +312,7 @@ const curBillPeriodLimit = computed(() => {
     billAmount: billPeriod?.payAmount,
   })
 
-  output.isShow = c1 || c2 ? true : false
+  output.isShow = c1 ? true : false
 
   output.isPass = output.isShow && c3 && c4
 
@@ -323,6 +327,8 @@ const curBillPeriodLimit = computed(() => {
     output.readonly = rangLimit === CreatePaymentBillParamsModelRangLimit.等于
   } else if (businessFlow === PaymentItemBusinessFlow.二次查缴) {
     output.readonly = flag === Flag.第二次
+  } else if (businessFlow === PaymentItemBusinessFlow.直缴) {
+    output.readonly = false
   }
 
   output.isSelectDisabled =
@@ -359,10 +365,12 @@ const curBillPeriodDetail = computed(() => {
       output.push({ name: '户名', value: customerName })
     }
     if (payAmount) {
-      output.push({ name: '账单金额', value: payAmount })
+      // 原始单位 分
+      output.push({ name: '账单金额', value: Decimal.div(payAmount, 100).toString() })
     }
     if (balance) {
-      output.push({ name: '余额', value: balance })
+      // 原始单位 分
+      output.push({ name: '余额', value: Decimal.div(balance, 100).toString() })
     }
     if (beginDate) {
       output.push({ name: '起始日期', value: beginDate })
@@ -402,9 +410,12 @@ type PaymentItem = {
   businessFlow: PaymentItemBusinessFlow
   isAppoint: Enable
   paymentConstraint: string
+  // 手机充值时候返回
+  operator?: Operator
   queryPaymentBillParamModelList: QueryPaymentBillParamModel[]
   createPaymentBillParamsModelList: CreatePaymentBillParamsModel[]
 }
+
 // 输入金额的限制条件
 type CreatePaymentBillParamsModel = {
   amountLimit: string
@@ -485,6 +496,12 @@ type PaymentData = {
   payAmount: string
 }
 
+enum Operator {
+  中国移动 = 0,
+  中国联通 = 1,
+  中国电信 = 2,
+}
+
 enum Flag {
   第一次 = '1',
   第二次 = '2',
@@ -563,6 +580,31 @@ function paymentList() {
       }))
     })
 }
+function mobilePaymentItemList() {
+  request
+    .post('/api/front/mobilePaymentItem', {
+      sessionId: data.sessiontId,
+      categoryType: '4',
+      mobile: data.userPhone,
+    })
+    .then(res => {
+      const mobilePaymentItem = res.data.respData.mobileRechargeModel.paymentItemModelList.filter(
+        (item: PaymentItem) => item.businessFlow === PaymentItemBusinessFlow.直缴
+      )[0]
+      if (mobilePaymentItem) {
+        // 缴费项目
+        data.paymentItemList = [mobilePaymentItem].map(serializePaymentItem)
+        // mock一个动态域
+        data.queryPaymentBillParam = initQueryPaymentBillParam()
+        data.queryPaymentBillParam.billKey = data.userPhone
+        // mock一个账单详情
+        data.billQueryResultModel = initBillQueryResultModel()
+        data.billQueryResultModel.billKey = data.userPhone
+      } else {
+        alert('获取不到缴费单位')
+      }
+    })
+}
 function paymentItemList() {
   request
     .post('/api/front/paymentItemList', {
@@ -572,49 +614,51 @@ function paymentItemList() {
     })
     .then(res => {
       const list: PaymentItem[] = res.data.respData.paymentItemPagingModel.paymentItemModelList
-      data.paymentItemList = list.map(item => {
+      data.paymentItemList = list.map(serializePaymentItem)
+    })
+}
+function serializePaymentItem(item: PaymentItem): PaymentItem {
+  return {
+    paymentItemId: String(item.paymentItemId),
+    paymentItemCode: item.paymentItemCode,
+    paymentItemName: item.paymentItemName,
+    companyId: item.companyId,
+    companyName: item.companyName,
+    businessFlow: item.businessFlow,
+    isAppoint: item.isAppoint,
+    paymentConstraint: item.paymentConstraint,
+    operator: item.operator,
+    queryPaymentBillParamModelList: item.queryPaymentBillParamModelList
+      .map(item2 => {
         return {
-          paymentItemId: String(item.paymentItemId),
-          paymentItemCode: item.paymentItemCode,
-          paymentItemName: item.paymentItemName,
-          companyId: item.companyId,
-          companyName: item.companyName,
-          businessFlow: item.businessFlow,
-          isAppoint: item.isAppoint,
-          paymentConstraint: item.paymentConstraint,
-          queryPaymentBillParamModelList: item.queryPaymentBillParamModelList
-            .map(item2 => {
-              return {
-                description: item2.description,
-                filedNum: item2.filedNum,
-                filedType: item2.filedType,
-                isNull: item2.isNull,
-                listBoxOptions: item2.listBoxOptions,
-                maxFieldLength: item2.maxFieldLength,
-                minFieldLength: item2.minFieldLength,
-                name: item2.name,
-                priorLevel: item2.priorLevel,
-                showLevel: item2.showLevel,
-              }
-            })
-            .sort((a, b) => {
-              // 优先 priorLevel 1
-              const c1 = a.priorLevel - b.priorLevel
-              // showLevel 1 在前，5 在后
-              const c2 = a.showLevel - b.showLevel
-              return c1 !== 0 ? c1 : c2
-            }),
-          createPaymentBillParamsModelList: item.createPaymentBillParamsModelList.map(item3 => {
-            return {
-              amountLimit: item3.amountLimit,
-              chooseAmount: item3.chooseAmount,
-              rangLimit: String(item3.rangLimit) as CreatePaymentBillParamsModelRangLimit,
-              rechargeLimit: item3.rechargeLimit,
-            }
-          }),
+          description: item2.description,
+          filedNum: item2.filedNum,
+          filedType: item2.filedType,
+          isNull: item2.isNull,
+          listBoxOptions: item2.listBoxOptions,
+          maxFieldLength: item2.maxFieldLength,
+          minFieldLength: item2.minFieldLength,
+          name: item2.name,
+          priorLevel: item2.priorLevel,
+          showLevel: item2.showLevel,
         }
       })
-    })
+      .sort((a, b) => {
+        // 优先 priorLevel 1
+        const c1 = a.priorLevel - b.priorLevel
+        // showLevel 1 在前，5 在后
+        const c2 = a.showLevel - b.showLevel
+        return c1 !== 0 ? c1 : c2
+      }),
+    createPaymentBillParamsModelList: item.createPaymentBillParamsModelList.map(item3 => {
+      return {
+        amountLimit: item3.amountLimit,
+        chooseAmount: item3.chooseAmount,
+        rangLimit: String(item3.rangLimit) as CreatePaymentBillParamsModelRangLimit,
+        rechargeLimit: item3.rechargeLimit,
+      }
+    }),
+  }
 }
 
 function serializeListBoxOptions(item: QueryPaymentBillParamModel) {
@@ -712,17 +756,23 @@ async function billInfo() {
 // 查询账单，需要轮询
 async function billInfoRequest(flag?: Flag) {
   const maxCount = 5
+  const paymentItem = curPaymentItem.value
   let qryAcqSsn = ''
   const sendBillInfoRequest = function (pollingTimes: number) {
+    const requestData = {
+      sessionId: data.sessiontId,
+      itemCode: data.curPaymentItemId,
+      ...data.queryPaymentBillParam,
+      flag,
+      qryAcqSsn,
+      pollingTimes: String(pollingTimes),
+    }
+    // 二次查缴需要带上金额
+    if (paymentItem?.businessFlow === PaymentItemBusinessFlow.二次查缴 && flag === Flag.第二次) {
+      requestData.filed1 = data.payAmount
+    }
     return request
-      .post('/api/front/billInfo', {
-        sessionId: data.sessiontId,
-        itemCode: data.curPaymentItemId,
-        ...data.queryPaymentBillParam,
-        flag,
-        qryAcqSsn,
-        pollingTimes: String(pollingTimes),
-      })
+      .post('/api/front/billInfo', requestData)
       .then(res => res.data.respData.billQueryResultModel)
   }
   const poll = async function (count: number): Promise<BillQueryResultModel> {
@@ -805,10 +855,11 @@ function isRangLimitPass({
   hasBillPeriod: boolean
   rangLimit: CreatePaymentBillParamsModelRangLimit
   businessFlow: PaymentItemBusinessFlow
-  payAmount: string
-  billAmount?: string
+  payAmount: string // 元
+  billAmount?: string // 分
 }): boolean {
   // 无账期，二次查缴
+  // ps: 直缴也无账期
   if (!hasBillPeriod || businessFlow === PaymentItemBusinessFlow.二次查缴) {
     return true
   }
@@ -819,21 +870,33 @@ function isRangLimitPass({
   if (rangLimit === CreatePaymentBillParamsModelRangLimit.无限制) {
     return true
   }
-  const _payAmount = Number(payAmount)
-  const _billAmount = Number(billAmount)
-  if (CreatePaymentBillParamsModelRangLimit.等于 === rangLimit && _payAmount === _billAmount) {
+  const _payAmount = new Decimal(payAmount).mul(100)
+  const _billAmount = new Decimal(billAmount)
+  if (CreatePaymentBillParamsModelRangLimit.等于 === rangLimit && _payAmount.equals(_billAmount)) {
     return true
   }
-  if (CreatePaymentBillParamsModelRangLimit.大于 === rangLimit && _payAmount > _billAmount) {
+  if (
+    CreatePaymentBillParamsModelRangLimit.大于 === rangLimit &&
+    _payAmount.greaterThan(_billAmount)
+  ) {
     return true
   }
-  if (CreatePaymentBillParamsModelRangLimit.大于等于 === rangLimit && _payAmount >= _billAmount) {
+  if (
+    CreatePaymentBillParamsModelRangLimit.大于等于 === rangLimit &&
+    _payAmount.greaterThanOrEqualTo(_billAmount)
+  ) {
     return true
   }
-  if (CreatePaymentBillParamsModelRangLimit.小于 === rangLimit && _payAmount < _billAmount) {
+  if (
+    CreatePaymentBillParamsModelRangLimit.小于 === rangLimit &&
+    _payAmount.lessThan(_billAmount)
+  ) {
     return true
   }
-  if (CreatePaymentBillParamsModelRangLimit.小于等于 === rangLimit && _payAmount <= _billAmount) {
+  if (
+    CreatePaymentBillParamsModelRangLimit.小于等于 === rangLimit &&
+    _payAmount.lessThanOrEqualTo(_billAmount)
+  ) {
     return true
   }
   return false
@@ -857,10 +920,10 @@ function sendOrder() {
   const requestData = {
     ...data.queryPaymentBillParam,
     sessionId: data.sessiontId,
-    payAmount: data.payAmount,
+    payAmount: Decimal.mul(data.payAmount, 100).toString(),
     companyId: paymentItem!.companyId,
     paymentItemCode: paymentItem!.paymentItemCode,
-    merOrderNo: 'xxxxxxxxxxxx',
+    merOrderNo: String(Date.now()),
     billKey: data.billQueryResultModel.billKey,
     notifyUrl: 'https://ciiri.com',
     item1: data.billQueryResultModel.item1,
@@ -889,7 +952,7 @@ function sendOrder() {
   }
 
   request.post('/api/front/order', requestData).then(res => {
-    debugger
+    alert('下单成功')
   })
 }
 
