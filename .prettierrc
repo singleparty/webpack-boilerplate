@@ -8,5 +8,12 @@
   "arrowParens": "avoid",
   "trailingComma": "es5",
   "endOfLine": "lf",
-  "singleAttributePerLine": true
+  "singleAttributePerLine": false,
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "rangeStart": 0,
+  "requirePragma": false,
+  "insertPragma": false,
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css"
 }

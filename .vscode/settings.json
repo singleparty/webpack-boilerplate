@@ -1,0 +1,14 @@
+{
+  /* eslint */
+  "eslint.run": "onSave",
+  "editor.formatOnSave": true,
+  // 要格式化的文件类型
+  "eslint.validate": [
+      "typescript",
+      "typescriptreact",
+      "javascript",
+      "tsx",
+      "vue",
+      "html"
+  ]
+}
