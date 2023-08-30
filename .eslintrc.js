@@ -19,6 +19,7 @@ module.exports = {
 
   rules: {
     'no-unused-vars': 1,
+    '@typescript-eslint/no-unused-vars': 1,
     'no-debugger': 1,
     'vue/no-unused-components': 0,
     'vue/multi-word-component-names': 0,
