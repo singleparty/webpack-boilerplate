@@ -1,6 +1,6 @@
 const webpack = require('webpack')
 const path = require('path')
-const PreloadPlugin = require("@vue/preload-webpack-plugin")
+const PreloadPlugin = require('@vue/preload-webpack-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const { CleanWebpackPlugin } = require('clean-webpack-plugin')
@@ -36,25 +36,18 @@ module.exports = {
       favicon: path.join(config.public, 'favicon.ico'),
       template: path.join(config.public, 'index.html'), // template file
       filename: 'index.html', // output file
-      env: process.env
+      env: process.env,
     }),
     new VueLoaderPlugin(),
-    new PreloadPlugin(
-      {
-        rel: 'preload',
-        include: 'initial',
-        fileBlacklist: [
-          /\.map$/,
-          /hot-update\.js$/
-        ]
-      }
-    ),
-    new PreloadPlugin(
-      {
-        rel: 'prefetch',
-        include: 'asyncChunks'
-      }
-    ),
+    new PreloadPlugin({
+      rel: 'preload',
+      include: 'initial',
+      fileBlacklist: [/\.map$/, /hot-update\.js$/],
+    }),
+    new PreloadPlugin({
+      rel: 'prefetch',
+      include: 'asyncChunks',
+    }),
   ],
 
   // Determine how modules within the project are treated
@@ -78,11 +71,10 @@ module.exports = {
           'babel-loader',
           {
             loader: 'ts-loader',
-            options: { appendTsSuffixTo: [/\.vue$/], transpileOnly: true, happyPackMode: false }
+            options: { appendTsSuffixTo: [/\.vue$/], transpileOnly: true, happyPackMode: false },
           },
-
-        ]
-      }
+        ],
+      },
     ],
   },
 
@@ -91,7 +83,7 @@ module.exports = {
     extensions: ['.js', '.ts', '.jsx', '.vue', '.json'],
     alias: {
       '@': config.src,
-      vue$: 'vue/dist/vue.runtime.esm-bundler.js'
+      vue$: 'vue/dist/vue.runtime.esm-bundler.js',
     },
   },
 }

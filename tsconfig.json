@@ -5,7 +5,7 @@
     // 这样就可以对 `this` 上的数据属性进行更严格的推断
     "strict": true,
     "jsx": "preserve",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "typeRoots": ["./types", "./node_modules/vue/dist/vue.d.ts"],
     "skipLibCheck": true,
     "esModuleInterop": true,
