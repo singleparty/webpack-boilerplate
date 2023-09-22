@@ -14,7 +14,7 @@ module.exports = merge(webpackCommonConfig, {
     path: config.build,
     filename: '[name].bundle.js',
     publicPath: '/',
-    chunkFilename: 'js/[name].js'
+    chunkFilename: 'js/[name].js',
   },
 
   // Spin up a server for quick development
@@ -48,8 +48,8 @@ module.exports = merge(webpackCommonConfig, {
       __VUE_OPTIONS_API__: 'true',
       __VUE_PROD_DEVTOOLS__: 'false',
       'process.env': {
-        BASE_URL: '/'
-      }
-    })
-  ]
+        BASE_URL: '"/"',
+      },
+    }),
+  ],
 })

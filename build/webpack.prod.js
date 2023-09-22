@@ -43,7 +43,7 @@ module.exports = merge(webpackCommonConfig, {
     }),
     new webpack.DefinePlugin({
       'process.env': {
-        BASE_URL: '/',
+        BASE_URL: '"/"',
       },
     }),
   ],
