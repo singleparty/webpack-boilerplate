@@ -1,3 +1,16 @@
 module.exports = {
-  presets: ['@vue/cli-plugin-babel/preset', '@babel/preset-typescript'],
+  presets: [['@babel/preset-env']],
+  plugins: [
+    [
+      '@babel/plugin-transform-runtime',
+      {
+        corejs: {
+          version: 3,
+          proposals: true,
+        },
+        useESModules: true,
+        absoluteRuntime: true,
+      },
+    ],
+  ],
 }

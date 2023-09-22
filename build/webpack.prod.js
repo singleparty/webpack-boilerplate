@@ -13,7 +13,7 @@ module.exports = merge(webpackCommonConfig, {
     path: config.build,
     publicPath: '/',
     filename: 'js/[name].[contenthash].bundle.js',
-    chunkFilename: 'js/[name].[contenthash:8].js'
+    chunkFilename: 'js/[name].[contenthash:8].js',
   },
   module: {
     rules: [
@@ -43,9 +43,9 @@ module.exports = merge(webpackCommonConfig, {
     }),
     new webpack.DefinePlugin({
       'process.env': {
-        BASE_URL: '/'
-      }
-    })
+        BASE_URL: '/',
+      },
+    }),
   ],
   optimization: {
     minimize: true,
@@ -59,5 +59,4 @@ module.exports = merge(webpackCommonConfig, {
     maxEntrypointSize: 512000,
     maxAssetSize: 512000,
   },
-}
-)
+})

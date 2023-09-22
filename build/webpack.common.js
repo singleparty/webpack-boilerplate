@@ -55,7 +55,7 @@ module.exports = {
     noParse: /^(vue|vue-router|vuex|vuex-router-sync)$/,
     rules: [
       // JavaScript: Use Babel to transpile JavaScript files
-      { test: /\.(t|j)s$/, exclude: /node_modules/, use: ['babel-loader'] },
+      { test: /\.js$/, exclude: /node_modules/, use: ['babel-loader'] },
 
       // Images: Copy image files to build folder
       { test: /\.(?:ico|gif|png|jpg|jpeg)$/i, type: 'asset/resource' },
