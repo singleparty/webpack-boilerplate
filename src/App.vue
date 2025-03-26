@@ -1,29 +1,46 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png" />
-  <hello-world msg="Welcome to Your Vue.js App" />
+  <div class="list">
+    <record-item
+      v-for="(item, idx) in data.list"
+      :key="idx"
+      :detail="item"
+      :delete="handleRecordItemDelete"
+    >
+    </record-item>
+  </div>
 </template>
 
-<script lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+<script lang="ts" setup>
+import { reactive } from 'vue'
+import RecordItem from './components/RecordItem.vue'
 
-import { defineComponent } from 'vue'
-export default defineComponent({
-  components: {
-    HelloWorld,
-  },
-  setup() {
-    return {}
-  },
+const data = reactive<{ list: string[] }>({
+  list: Array.from({ length: 50 })
+    .fill('')
+    .map((item, idx) => `嘻嘻嘻嘻嘻嘻 ${idx}`),
 })
-</script>
 
-<style>
+async function handleRecordItemDelete(idx: number): Promise<boolean> {
+  return new Promise(resolve => setTimeout(() => resolve(true)))
+}
+</script>
+<style lang="less" scoped>
+.list {
+  background-color: gray;
+  padding: 10px;
+}
+</style>
+<style lang="less">
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
 }
 </style>
