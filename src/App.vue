@@ -1,33 +1,22 @@
 <template>
-  <div class="list">
-    <record-item
-      v-for="(item, idx) in data.list"
-      :key="idx"
-      :detail="item"
-      :delete="handleRecordItemDelete"
-    >
-    </record-item>
+  <div class="container">
+    <GSAP />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { reactive } from 'vue'
-import RecordItem from './components/RecordItem.vue'
-
-const data = reactive<{ list: string[] }>({
-  list: Array.from({ length: 50 })
-    .fill('')
-    .map((item, idx) => `嘻嘻嘻嘻嘻嘻 ${idx}`),
-})
-
-async function handleRecordItemDelete(idx: number): Promise<boolean> {
-  return new Promise(resolve => setTimeout(() => resolve(true)))
-}
+import { gsap } from 'gsap'
+import GSAP from './components/GSAP.vue'
 </script>
 <style lang="less" scoped>
-.list {
-  background-color: gray;
-  padding: 10px;
+.container {
+  overflow: hidden;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
 }
 </style>
 <style lang="less">
@@ -35,6 +24,7 @@ html,
 body {
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
