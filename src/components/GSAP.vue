@@ -109,10 +109,8 @@ function twoLayerScroll(e: Event) {
   const st = target?.scrollTop ?? 0
   if (st < 46) {
     setTheme('red')
-  } else if (st >= 46 && st < 146) {
-    setTheme('white', 46 - st)
   } else {
-    setTheme('white')
+    setTheme('white', Math.max(46 - st, -100))
   }
 }
 function bankItemClick(idx: number) {
