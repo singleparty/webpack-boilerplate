@@ -3,10 +3,10 @@
     <div class="one-layer">
       <div class="banner" :class="bannerClass" :style="bannerStyle">
         <div class="bg-red"></div>
-        <div class="content-wrapper-outside">
+        <div class="outside-extra-content">
           <!-- 跟搜索框并列，不需要撑开 banner 高度，white theme 时候使用 -->
           <div class="filter-bank-list" v-if="contentWrapperContent && isWhiteTheme">
-            <p v-for="item in 30" :key="item" @click="bankItemClick(item)">
+            <p v-for="item in 6" :key="item" @click="bankItemClick(item)">
               {{ contentWrapperContent }} {{ item }}
             </p>
           </div>
@@ -23,10 +23,10 @@
               @input="searchInputInput"
             />
           </div>
-          <div class="content">
+          <div class="extra-content">
             <!-- 跟搜索框放同一个节点，可以撑开 banner 高度 -->
             <div class="filter-bank-list" v-if="contentWrapperContent && !isWhiteTheme">
-              <p v-for="item in 30" :key="item" @click="bankItemClick(item)">
+              <p v-for="item in 6" :key="item" @click="bankItemClick(item)">
                 {{ contentWrapperContent }} {{ item }}
               </p>
             </div>
@@ -208,11 +208,12 @@ function setTheme(val: 'red' | 'white', offset?: number) {
           }
         }
         /* 额外的一些内容 */
-        .content {
+        .extra-content {
+          transition: all 0.3s;
           background: yellow;
         }
       }
-      .content-wrapper-outside {
+      .outside-extra-content {
         position: absolute;
         top: 184px;
         width: 100%;
